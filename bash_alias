@@ -1,0 +1,785 @@
+#!/bin/bash
+
+# @title Deepslate
+# ------------------------------------------------------------------------------------------
+# @author Ashith, Muhammed, Hari
+# @version 1.7
+# @description Some commands to simplify day to day webhosting tasks.
+# ------------------------------------------------------------------------------------------
+# @copyright Copyright (C) 2020 Deepslate
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# ------------------------------------------------------------------------------------------
+
+
+print_details()
+{
+  echo "
+  ====
+  Domain : $domain
+  IP     : $ip
+  PTR    : $rdns
+  ====
+  ";
+}
+
+
+do_telnet_check()
+{
+  telnet $1 25
+}
+
+
+process_plesk_details()
+
+{
+  windash=`echo $rdns | sed "s|.dummyhostname.net|.internal.dummyhostname.net/windash|g"`
+  db="sdh"
+  server_type=`echo $rdns | awk -F ".dummyhostname.net" '{print $1}'`
+  is_bh=`echo $server_type | grep bh | wc -l `
+  if [ $is_bh = "1" ]
+  then
+        db="rh"
+  fi
+
+  is_mdh=`echo $server_type | grep md | wc -l `
+  if [ $is_mdh = "1" ]
+  then
+        db="mdh"
+  fi
+
+  echo "Windash: http://$windash"; echo ""
+  echo "Generating Plesk link for $db package..."
+  su -c "ssh -tqo StrictHostKeyChecking=no 10.86.210.2 \"python2.6 /usr/local/getSSOUrl-supportadmin servername=$rdns ip=115.110.71.146 type=$db\"" techsupp
+}
+
+
+process_cpanel_details()
+{
+
+echo $rdns
+#commenting out as user access is revoked and access is via Eigsh
+
+#  echo "
+#  ssh $rdns
+#  "
+#  /home/ashith.w/ssh.sh $rdns
+
+}
+
+
+
+process_if_url()
+{
+ url=`echo $domain | egrep -i "http:|https:" | wc -l`
+
+ if [ $url == 1 ]
+ then
+   domain=`echo $domain| sed "s,/$,,"`
+   domain=`echo $domain | sed "s|^http://||" `
+   domain=`echo $domain | sed "s|^https://||" `
+ fi
+}
+
+
+
+process_input()
+{
+   if [ -z "$domain" ]
+    then
+    read -p "Domain: " domain;
+  fi
+  process_if_url
+}
+
+
+check_if_plesk()
+{
+  plesk=`echo $rdns | egrep -i "plesk|-pp-" | wc -l`
+}
+
+
+
+
+
+
+domain=$1;
+process_input;
+
+ip=`dig +short $domain| tail -1`;
+rdns=`dig -x $ip +short | tail -1|sed "s|\.$||"`;
+our_rdns=`echo $rdns | grep -i dummyhostname.net | wc -l`;
+
+if [ $our_rdns == "0" ]
+then
+  print_details
+  do_telnet_check $ip
+else
+  print_details
+
+  check_if_plesk
+  if [[ $plesk == 1 ]]
+  then
+    process_plesk_details
+  else
+    process_cpanel_details
+  fi
+fi
+#Aliases for scripts
+
+force_color_prompt=yes
+alias grep='grep --colour=auto'
+alias ls='ls --color=auto'
+alias ll='ls --color=auto -la'
+alias aqf='/usr/local/cpanel/bin/autossl_check_cpstore_queue --force'
+alias tu='cat /etc/trueuserdomains |grep -i'
+alias ud='cat /etc/userdatadomains | grep -i'
+alias to='cat /etc/trueuserowners|grep -i'
+alias ipc='ifconfig | grep'
+alias ipt='iptables -nL | grep -i'
+alias cphp='python <(curl -ks https://gitlab.com/deepslate/MyBash/raw/master/creataPHP_CPHP.py?inline=false)'
+alias gcar='python <(curl -ks https://gitlab.com/deepslate/MyBash/raw/master/gcar_generate_cpanel_access_log_report.py)'
+alias regen_shadow='python <(curl -ks https://gitlab.com/deepslate/MyBash/raw/master/regenerate_shadow.py)'
+alias exim_parser='python <(curl -ks https://gitlab.com/deepslate/MyBash/raw/master/exim_parser.py)'
+alias gcar_test='python <(curl -ks https://gitlab.com/deepslate/MyBash/-/raw/master/library/gcar.py)'
+
+#Common variables for log files
+
+apal=/usr/local/apache/logs/access_log
+apel=/usr/local/apache/logs/error_log
+cpal=/usr/local/cpanel/logs/access_log
+cpel=/usr/local/cpanel/logs/error_log
+exlog=/var/log/exim_mainlog
+cphl=/usr/local/cpanel/logs/cphulkd.log
+
+#Aliases for common tasks
+
+#webmail logins
+
+wml()
+{
+if [[ $1 == *"@"* ]];then
+    /usr/sbin/whmapi1 create_user_session user=$1 service=webmaild locale=en|awk '$1 == "url:"'{'print $2'}
+    elif [[ $1 == *"."* ]];then
+        path=$(cat /etc/userdatadomains|grep ^"$1"| awk -F "==" {'print $5'}|awk -F "/" {'print "/"$2"/"$3"/""mail"'})
+        ls -la $path|grep '@' |grep $1|awk {'print $9'}|cut -d "." -f2|awk '{gsub("_",".");print}'
+    else
+    echo "invalid entry"
+fi
+}
+
+#Get site URL full path From current working directory
+
+cul()
+{
+cp=$(pwd);
+status="cat"
+user=$(echo $cp |awk -F "/" {'print $3'})
+mapfile -t myarray < <( for path in ${cp//// }; do echo "$path"; done);
+for ((k=${#myarray[@]}-1; k>=0; k--)); do
+    status="$(cat /etc/userdatadomains|grep "$user" |awk -v t=$cp -F "==" '{for(i=1;i<=NF;i++){if($i==t){print $1 " "$3;break;}}}')"
+    #echo $status
+    count=$(echo $status|wc -w)
+    if [[ $count > 3 ]];then
+        url="$(echo $status|awk -v t="parked" '{for(i=1;i<=NF;i++){if($i==t){$i=$(i-1)=$(i-2)="";print;}}}'|cut -d ":" -f1 && echo $status|awk -v t="sub" '{for(i=1;i<=NF;i++){if($i==t){$i=$(i-1)=$(i-2)="";print;}}}'|cut -d ":" -f1)"
+        break;
+    elif [[ $count == 3 ]];then
+        url="$(cat /etc/userdatadomains|awk -v t="$cp" -F "=="  '{for(i=0;i<NF;i++)if($i==t){print $1}}'|cut -d ":" -f1)"
+        break;
+    else
+        r="${myarray[$k]}/$r"
+        cp=${cp//"/${myarray[$k]}"/}
+    fi
+done
+echo $url/$r
+r="";
+}
+
+#Check if server disk and Inode is exceeded
+
+server_Disk_Inode()
+{
+exedDisk="$( df -hl | awk '$5 ~ "100"')"
+exedInode="$(df -ihl| awk '$5 ~ "100"')"
+if [ -n "$exedDisk" ];then
+echo "Issue in server Disk space";df -hl;
+fi
+if [ -n "$exedInode" ];then
+echo "Issue in server Inode limit";df -ihl
+fi
+
+}
+
+#create_backup: To rsync a file in the CWD to backup server cb <filename>
+
+cb()
+{
+green=`tput setaf 2`
+red=`tput setaf 1`
+reset=`tput sgr0`
+if [ "$1" == "" ];then
+echo "Usage : Move to the directory having the file, then cb <filename>"
+return;
+fi
+pt=$(hostname)
+if [[ $pt != *"backup"* ]];then
+echo "${red} Run this from a backup server ${reset}";
+return;
+fi
+if [ -n "$STY" ];then
+echo "${green} Running under screen" $STY "${reset}"
+else
+echo "${red} Not running under a screen, for large files, run this under a screen ${reset}"
+fi
+user=$([[ $(pwd) == "/data/restore/userdata/"*"/home/"* ]]&& pwd|awk -F "/" {'print $7"_"'} || echo "")
+p=$RANDOM
+rsync -aPvz -e 'ssh -o PreferredAuthentications=publickey -i /root/.ssh/id_rsa' "$(pwd)"/$1 cp-in-1.dummyhostname.net:/home/download/public_html/"$user""$p""_"$1
+st=$?
+[ $st -eq 0 ] && echo "${green} http://downloadbackup.com.cp-in-1.dummyhostname.net/"$user""$p""_"$1 ${reset}" || echo "${red} Rsync failed
+${green}
+echo '
+$(cat /root/.ssh/id_rsa.pub) 
+' >> /root/.ssh/authorized_keys
+${red}
+Execute the above command in destination server
+
+Server: cp-in-1.dummyhostname.net
+${reset}"
+}
+
+domain_to_user()
+{
+if [ -z $1 ]
+then
+        read -p "Domain: " domain
+else
+        domain=$1
+fi
+bool=`echo $domain | grep "\." | wc -l`;
+if [ $bool == "0" ]
+then
+        user=$domain;
+        echo $user
+else
+        user=`sudo /scripts/whoowns $domain`
+        echo $user
+fi
+}
+
+cpapi()
+{
+if [ -z $1 ]
+then
+    pwd | grep -q "/home[0-9]*/" && user=`pwd | awk -F "/" '{print $3}'` || domain_to_user
+else 
+	user_input=$1
+	domain_to_user $user_input
+fi
+
+if [ -z $user ]
+then
+  echo  Domain not found!
+else
+      echo "user: $user"
+      whmapi1 create_user_session service=cpaneld locale=en user=$user
+fi
+}
+
+alias cpl='cpapi'
+
+ssl()
+{
+user=`domain_to_user $1`
+sudo /usr/sbin/whmapi1 add_override_features_for_user user=$user features=%7b%22autossl%22%3a1%7d
+sudo /usr/local/cpanel/bin/autossl_check --user $user 
+}
+
+ssl_bg()
+{
+user=`domain_to_user $1`
+sudo /usr/sbin/whmapi1 add_override_features_for_user user=$user features=%7b%22autossl%22%3a1%7d
+sudo /usr/local/cpanel/bin/autossl_check --user $user >/dev/null 2>&1 &
+echo "Running process for user $user"
+}
+
+whmapi()
+{
+whmapi1 create_user_session service=whostmgrd user=$1
+}
+
+check_quota()
+{
+user=$1
+flag=0
+
+if [ -z "$user" ]
+then
+return 1
+fi
+
+while IFS= read -r line
+do
+   ##Check for * quota exceeded
+   echo $line | grep -q "\*" && { flag=1 ; break; }
+      
+   ## Check Disk usage
+  used_disk=`echo "$line" | awk '{print $2}'| sed "s|M|000|g"`
+  total_disk=`echo "$line" | awk '{print $3}'| sed "s|M|000|g"`
+  if [ $used_disk -ge $total_disk ]
+  then
+        echo "Looks like Disk uage is 100%"
+        flag=1
+  fi
+
+  ## Check Inode usage
+  used_inode=`echo "$line" | awk '{print $5}'| sed "s|k|000|g"`
+  total_inode=`echo "$line" | awk '{print $6}'| sed "s|k|000|g"`
+  if [ $used_inode -ge $total_inode ]
+  then
+        echo "Looks like Inode uage is 100%"
+        flag=1
+  fi
+
+done < <(quota -sgl $user 2>&1 | grep "\/dev\/" | grep -v "\/backup")
+
+if [ "$flag" -eq "1" ]
+then
+        echo "Quota exceeded"
+        quota -sgl $user
+fi
+}
+
+cpanel_disk_inode() {
+	user=$1
+	tmp_file=/tmp/cpanel.disk.quota
+	RED='\033[0;31m'
+	NC='\033[0m' # No Color
+
+	uapi --user=$user Quota get_quota_info > "$tmp_file"  2>/dev/null
+
+	inode_limit=`cat $tmp_file | grep under_inode_limit | awk '{print $2}'`
+	disk_limit=`cat $tmp_file| grep under_megabyte_limit | awk '{print $2}'`
+
+	if [ "$disk_limit" -eq 0 ]
+	then
+	  printf "${RED}cPanel disk quota exceeded${NC}\n==============\n"
+	  cat $tmp_file| grep -E "megabyte_limit|megabytes_used|megabytes_remain"
+	fi
+
+	if [ "$inode_limit" -eq 0 ]
+	then
+	  printf "${RED}Inode exceeded${NC}\n==============\n"
+	  cat $tmp_file | grep -E "inode_limit|inodes_remain|inodes_used"
+	fi
+	
+	rm -f "$tmp_file";
+}
+
+switch_to_document_root()
+{
+if [ -z $1 ]
+then
+    read -p "Domain: "
+else
+    domain=$1
+fi
+user=`/scripts/whoowns $domain`
+userdir=`grep -i "^$domain:" /etc/userdatadomains | head -1 | awk -F "==" '{print $5}'`
+IP=`grep -i "^$domain:" /etc/userdatadomains | head -1 | awk -F "==" '{print $6}' | cut -d: -f1`
+echo "
+User: $user
+IP  : $IP
+Dir : $userdir
+"
+
+[ -z "$user" ] && return 15
+
+cd $userdir
+
+echo "Bootstrap: Checking quota."
+check_quota $user
+
+echo "Bootstrap: Checking allocated disk and quota in cPanel."
+cpanel_disk_inode $user
+
+#Check if user is blocked in iptables
+echo "Bootstrap: Checking user in in iptables."
+uid=`grep $user /etc/passwd | awk -F : '{print $3}'`
+timeout 4 iptables -nL | grep "UID match $uid"
+
+#Check if IP in DNS pointed to cPanel IP
+echo "Bootstrap: Checking IP address."
+dns_ip=`timeout 4 dig +short $domain | tail -1`
+echo $IP | grep -q "$dns_ip" ||  echo "DNS IP ($dns_ip) != IP in cPanel ($IP)"
+#Check if server disk and Inode is exceeded
+echo "Bootstrap: Checking server Disk & Inode."
+server_Disk_Inode
+}
+alias sd='switch_to_document_root'
+
+#To find primary domain name from any addons/accounts
+p()
+{
+owner=`domain_to_user $1`
+reseller=`sudo grep $owner /etc/trueuserowners | awk -F ": " '{print $2}'|uniq`
+
+if [ $reseller == "root" ]
+then
+        prime=`sudo grep $owner /etc/trueuserdomains`
+else
+        prime=`sudo grep $reseller /etc/trueuserdomains`
+fi
+echo "---"
+echo $prime
+echo "---"
+}
+
+msgid()
+{
+exigrep $1 /var/log/exim_mainlog
+}
+
+wp()
+{
+
+#Check if WP installed in CWD
+
+if [ ! -f wp-config.php ]
+        then
+                echo "Could not find wp-config.php file in current working directory. Please move to a directory where Wordpress is installed and issue the command again"
+        else
+
+
+#Check WP version
+
+echo ""
+grep '^$wp_version' ./wp-includes/version.php | sed 's/\$//g'
+
+#Find DB details
+
+pass=`grep DB_PASSWORD wp-config.php | cut -d \' -f 4`
+username=`grep DB_USER wp-config.php | cut -d \' -f 4`
+DB=`grep DB_NAME wp-config.php | cut -d \' -f 4`
+tbl_prefix=`grep '\$table_prefix'  wp-config.php | cut -d \' -f 2`
+
+#Print DB details
+
+echo "
+Database details
+=================
+DB      :$DB
+DB User :$username
+DB Pass :$pass
+"
+
+#Find siteurl and home from database
+
+echo "
+Fetching siteurl and home from database $DB...
+"
+
+mysql_lookup=`echo "use $DB; select option_name, option_value  from ${tbl_prefix}options where option_name =\"siteurl\" OR  option_name = \"home\";"`
+mysql -u "$username" -p"$pass" -e "$mysql_lookup"
+fi
+}
+
+
+missing_wp_cli()
+{
+echo "Downloading wp-cli.phar..."
+if [ ! -d "/root/scripts" ];then
+mkdir /root/scripts
+fi
+wget -O /root/scripts/wp-cli.phar https://gitlab.com/deepslate/MyBash/raw/master/wp-cli.phar
+chmod +x /root/scripts/wp-cli.phar
+}
+
+
+wp-cli-initial-check()
+{
+#Check if WP installed in CWD
+
+if [ ! -f wp-config.php ]
+then
+    echo "Make sure that you are navigated to the directory where wordpress is installed "
+#return a non zero value if the check fails indicating non wp directory
+return 55;
+fi
+if [ ! -f /usr/local/cpanel/3rdparty/bin/wp ];then
+        if [ ! -f /root/scripts/wp-cli.phar ];then
+				echo "Did not find wp_cli. Checking for a download now."
+                missing_wp_cli
+                wp="php /root/scripts/wp-cli.phar"
+        else
+                wp="php /root/scripts/wp-cli.phar"
+        fi
+else
+wp="/usr/local/cpanel/3rdparty/bin/wp"
+fi
+echo "Using wp-cli from the binary $wp"
+}
+
+wp_user()
+{
+#Do not run this function if wp-cli-initial-check fails
+wp-cli-initial-check || return
+
+#To ceate a new admin user
+if [ -z $1 ]
+then
+	echo "==========="
+    echo "Username : techsupportadmin"
+    $wp user create techsupportadmin mailtestingserver@gmail.com --role=administrator --allow-root
+elif [ -z $2 ]
+then
+    if [ "$1" == "--delete" ]
+    then
+		$wp user delete techsupportadmin --yes --allow-root
+    else
+        $wp user create $1 mailtestingserver@gmail.com --role=administrator --allow-root
+    fi
+elif [ "$1" = "--delete" ]
+    then
+        $wp user delete $2 --yes --allow-root
+elif [ "$2" = "--delete" ]
+    then
+       $wp user delete $1 --yes --allow-root
+else
+      $wp user create $1 $2 --role=administrator --allow-root
+fi
+}
+
+wp_theme()
+{
+#Do not run this function if wp-cli-initial-check fails
+wp-cli-initial-check || return
+
+		#List the current themes
+        $wp theme list --allow-root
+        if [ ! -z $1 ]
+        then
+                $wp theme activate $1 --allow-root
+        fi
+}
+
+
+modsec()
+{
+read -p "Domain: " domain
+username=`/scripts/whoowns $domain`
+echo "User: $username"
+read -p "Rule ID: " rule
+sudo /usr/local/scripts/techsupp_helper_scripts/modsec_manage.rb -d $domain -u $username -r $rule
+}
+
+inode()
+{
+ bash <(wget -qO - https://gitlab.com/deepslate/MyBash/raw/master/calulate-inode.sh) -t 1500 -e 1000 $@
+}
+
+check_exim_spam()
+{
+        echo "Check Spamming in Exim.
+        1. Sort email by user
+        2. Sort email sent from /home directory
+        3. Sort by X-PHP-Script
+        4. Genreic check
+        "
+
+  read INPUT_STRING
+  case $INPUT_STRING in
+        1)
+                echo "Sort email by user"
+                echo "====="
+                echo "exigrep @ /var/log/exim_mainlog | grep U= | sed -n \'s/.*U=\(.*\)S=.*/\1/p\' | sort | uniq -c | sort -nr -k1
+"
+                exigrep @ /var/log/exim_mainlog | grep U= | sed -n 's/.*U=\(.*\)S=.*/\1/p' | sort | uniq -c | sort -nr -k1 | less
+                ;;
+        2)
+                echo "Sort email sent from /home directory"
+                echo "====="
+                echo "grep \"cwd=\" /var/log/exim_mainlog | awk '{for(i=1;i<=10;i++){print $i}}' | sort |uniq -c| grep cwd | sort -nr | grep /home | less"
+                grep "cwd=" /var/log/exim_mainlog | awk '{for(i=1;i<=10;i++){print $i}}' | sort |uniq -c| grep cwd | sort -nr | grep /home | less
+                ;;
+        3)
+                echo "Sort by X-PHP-Script"
+                echo "====="
+                echo "grep X-PHP-Script /var/spool/exim/input/*/*-H | awk '{print $3}' | sort | uniq -c | sort -nr|less"
+                grep X-PHP-Script /var/spool/exim/input/*/*-H | awk '{print $3}' | sort | uniq -c | sort -nr |less
+                ;;
+        4)
+                echo "Generic check"
+                echo "====="
+                echo "exigrep @ /var/log/exim_mainlog | grep _login | sed -n 's/.*_login:\(.*\)S=.*/\1/p' | sort | uniq -c | sort -nr -k1"
+                exigrep @ /var/log/exim_mainlog | grep _login | sed -n 's/.*_login:\(.*\)S=.*/\1/p' | sort | uniq -c | sort -nr -k1 |less
+                ;;
+                
+        *)
+                echo "Invalid option"
+                ;;
+  esac
+echo
+}
+alias cspam='check_exim_spam'
+
+unblock_ports()
+{
+script_url="https://gitlab.com/deepslate/MyBash/-/raw/master/library/ports.sh"
+
+if [ -z $1 ]
+then
+    pwd | grep -q "/home[0-9]*/" && user=`pwd | awk -F "/" '{print $3}'` || domain_to_user
+else 
+	user_input=$1
+	domain_to_user $user_input
+fi
+
+if [ -z $user ]
+then
+  echo  Domain or User not found!
+else
+      	echo "Blocking the ports of the $user to prime the script."
+		curl -s $script_url | bash /dev/stdin --block-all-ports $user
+
+		echo "Now Unblocking the ports of the $user..."
+		curl -s $script_url | bash /dev/stdin --unblock-ports $user
+fi
+}
+
+alias ublock='unblock_ports'
+
+deepslate()
+{
+printf "
+deepslate --help | ds
+
+	Displays help menu for the commands suppoerted in deepslate repository.
+	Read more: https://gitlab.com/deepslate/MyBash/
+
+
+sd <domain>
+
+	Switches the current working directory to the document root of given domain. 
+	Does initial checks as follows.
+
+	- If DNS IP is same as cPanel IP address.
+	- Check quota.
+	- Check server's Disk and inode.
+	- Check iptables block.
+	
+
+gcar <username>
+
+	Creates a comprehensive report from cPanel access log including the 
+	Filemanager access, DB creation, Email adition, etc.
+	
+
+unblock_ports <username>
+	
+	Unblocks the ports blocked by the Port Block plugin in cPanel.
+	
+	
+exim_parser <domain or Email address>
+    
+    Print exim logs in more readable way (Just from,to,subject and status)
+    
+    -l 
+        Can pass more values to grep (seperated by coma 
+        eg : exim_parser domain.com -l firstgrep, second grep)
+		
+
+ssl <domain name | username>
+
+	Enables free SSL for the domain.
+	
+	
+wml <email address or domain>
+
+    To generate webmail logins if Email address passed 
+    and list all email address if doman is passed.
+	
+
+cpl <domain name> | cpapi <domain name>
+
+	Creates a cPanel login session.
+	
+
+cspam
+
+	Generate SPAM report from a exim mail server.
+	
+
+cul
+
+	Displays URL of the website from the current working directory.
+	
+
+inode
+
+	Sorts directories with inode usage.
+	
+
+cb <file name>
+
+	Uploads the file to our backup server and provides the downloadble link.
+	
+
+cphp 
+
+    Create common test PHP files such as phpinfo page mailtesting etc.
+	
+	
+wp
+
+	Checks Wordpress version and database connectivity when executed 
+	from directory with Wordpress install.
+	
+
+wp_user 
+
+	Creates a Wordpress admin login using wpcli. If wpcli is not installed, 
+	downloads the file and use the file temporarily for login.
+
+	--delete
+
+		Deletes the created Wordpress admin login
+		
+
+wp_theme [<theme name>]
+
+	To list/change the Wordpress theme.
+" | less
+
+}
+
+alias ds='deepslate'
+
+#To delete left over sourced file
+rm -f bash_alias deepslate
+clear
+green=`tput setaf 2`
+red=`tput setaf 1`
+reset=`tput sgr0`
+
+echo '
+       __                     __      __
+  ____/ /__  ___  ____  _____/ /___ _/ /____
+ / __  / _ \/ _ \/ __ \/ ___/ / __ `/ __/ _ \
+/ /_/ /  __/  __/ /_/ (__  ) / /_/ / /_/  __/
+\__,_/\___/\___/ .___/____/_/\__,_/\__/\___/
+              /_/
+';
+
+echo "Type in ${green}deepslate${reset} or ${green}ds${reset} to get the list of commands supported.
+"

@@ -1,0 +1,97 @@
+deepslate --help | ds
+
+	Displays help menu for the commands suppoerted in deepslate repository.
+	Read more: https://gitlab.com/deepslate/MyBash/
+
+
+sd <domain>
+
+	Switches the current working directory to the document root of given domain. 
+	Does initial checks as follows.
+
+	- If DNS IP is same as cPanel IP address.
+	- Check quota.
+	- Check server's Disk and inode.
+	- Check iptables block.
+	
+
+gcar <username>
+
+	Creates a comprehensive report from cPanel access log including the 
+	Filemanager access, DB creation, Email adition, etc.
+	
+
+unblock_ports <username>
+	
+	Unblocks the ports blocked by the Port Block plugin in cPanel.
+	
+	
+exim_parser <domain or Email address>
+    
+    Print exim logs in more readable way (Just from,to,subject and status)
+    
+    -l 
+        Can pass more values to grep (seperated by coma 
+        eg : exim_parser domain.com -l firstgrep, second grep)
+		
+
+ssl <domain name | username>
+
+	Enables free SSL for the domain.
+	
+	
+wml <email address or domain>
+
+    To generate webmail logins if Email address passed 
+    and list all email address if doman is passed.
+	
+
+cpl <domain name> | cpapi <domain name>
+
+	Creates a cPanel login session.
+	
+
+cspam
+
+	Generate SPAM report from a exim mail server.
+	
+
+cul
+
+	Displays URL of the website from the current working directory.
+	
+
+inode
+
+	Sorts directories with inode usage.
+	
+
+cb <file name>
+
+	Uploads the file to our backup server and provides the downloadble link.
+	
+
+cphp 
+
+    Create common test PHP files such as phpinfo page mailtesting etc.
+	
+	
+wp
+
+	Checks Wordpress version and database connectivity when executed 
+	from directory with Wordpress install.
+	
+
+wp_user 
+
+	Creates a Wordpress admin login using wpcli. If wpcli is not installed, 
+	downloads the file and use the file temporarily for login.
+
+	--delete
+
+		Deletes the created Wordpress admin login
+		
+
+wp_theme [<theme name>]
+
+	To list/change the Wordpress theme.
