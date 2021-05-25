@@ -249,7 +249,7 @@ st=$?
 [ $st -eq 0 ] && echo "${green} http://downloadbackup.com.cp-in-1.dummyhostname.net/"$user""$p""_"$1 ${reset}" || echo "${red} Rsync failed
 ${green}
 echo '
-$(cat /root/.ssh/id_rsa.pub) 
+$(cat /root/.ssh/id_rsa.pub)
 ' >> /root/.ssh/authorized_keys
 ${red}
 Execute the above command in destination server
@@ -282,7 +282,7 @@ cpapi()
 if [ -z $1 ]
 then
     pwd | grep -q "/home[0-9]*/" && user=`pwd | awk -F "/" '{print $3}'` || domain_to_user
-else 
+else
 	user_input=$1
 	domain_to_user $user_input
 fi
@@ -302,7 +302,7 @@ ssl()
 {
 user=`domain_to_user $1`
 sudo /usr/sbin/whmapi1 add_override_features_for_user user=$user features=%7b%22autossl%22%3a1%7d
-sudo /usr/local/cpanel/bin/autossl_check --user $user 
+sudo /usr/local/cpanel/bin/autossl_check --user $user
 }
 
 ssl_bg()
@@ -332,7 +332,7 @@ while IFS= read -r line
 do
    ##Check for * quota exceeded
    echo $line | grep -q "\*" && { flag=1 ; break; }
-      
+
    ## Check Disk usage
   used_disk=`echo "$line" | awk '{print $2}'| sed "s|M|000|g"`
   total_disk=`echo "$line" | awk '{print $3}'| sed "s|M|000|g"`
@@ -382,7 +382,7 @@ cpanel_disk_inode() {
 	  printf "${RED}Inode exceeded${NC}\n==============\n"
 	  cat $tmp_file | grep -E "inode_limit|inodes_remain|inodes_used"
 	fi
-	
+
 	rm -f "$tmp_file";
 }
 
@@ -624,7 +624,7 @@ check_exim_spam()
                 echo "exigrep @ /var/log/exim_mainlog | grep _login | sed -n 's/.*_login:\(.*\)S=.*/\1/p' | sort | uniq -c | sort -nr -k1"
                 exigrep @ /var/log/exim_mainlog | grep _login | sed -n 's/.*_login:\(.*\)S=.*/\1/p' | sort | uniq -c | sort -nr -k1 |less
                 ;;
-                
+
         *)
                 echo "Invalid option"
                 ;;
@@ -640,7 +640,7 @@ script_url="https://gitlab.com/deepslate/MyBash/-/raw/master/library/ports.sh"
 if [ -z $1 ]
 then
     pwd | grep -q "/home[0-9]*/" && user=`pwd | awk -F "/" '{print $3}'` || domain_to_user
-else 
+else
 	user_input=$1
 	domain_to_user $user_input
 fi
@@ -670,91 +670,91 @@ deepslate --help | ds
 
 sd <domain>
 
-	Switches the current working directory to the document root of given domain. 
+	Switches the current working directory to the document root of given domain.
 	Does initial checks as follows.
 
 	- If DNS IP is same as cPanel IP address.
 	- Check quota.
 	- Check server's Disk and inode.
 	- Check iptables block.
-	
+
 
 gcar <username>
 
-	Creates a comprehensive report from cPanel access log including the 
+	Creates a comprehensive report from cPanel access log including the
 	Filemanager access, DB creation, Email adition, etc.
-	
+
 
 unblock_ports <username>
-	
+
 	Unblocks the ports blocked by the Port Block plugin in cPanel.
-	
-	
+
+
 exim_parser <domain or Email address>
-    
+
     Print exim logs in more readable way (Just from,to,subject and status)
-    
-    -l 
-        Can pass more values to grep (seperated by coma 
+
+    -l
+        Can pass more values to grep (seperated by coma
         eg : exim_parser domain.com -l firstgrep, second grep)
-		
+
 
 ssl <domain name | username>
 
 	Enables free SSL for the domain.
-	
-	
+
+
 wml <email address or domain>
 
-    To generate webmail logins if Email address passed 
+    To generate webmail logins if Email address passed
     and list all email address if doman is passed.
-	
+
 
 cpl <domain name> | cpapi <domain name>
 
 	Creates a cPanel login session.
-	
+
 
 cspam
 
 	Generate SPAM report from a exim mail server.
-	
+
 
 cul
 
 	Displays URL of the website from the current working directory.
-	
+
 
 inode
 
 	Sorts directories with inode usage.
-	
+
 
 cb <file name>
 
 	Uploads the file to our backup server and provides the downloadble link.
-	
 
-cphp 
+
+cphp
 
     Create common test PHP files such as phpinfo page mailtesting etc.
-	
-	
+
+
 wp
 
-	Checks Wordpress version and database connectivity when executed 
+	Checks Wordpress version and database connectivity when executed
 	from directory with Wordpress install.
-	
 
-wp_user 
 
-	Creates a Wordpress admin login using wpcli. If wpcli is not installed, 
+wp_user
+
+	Creates a Wordpress admin login using wpcli. If wpcli is not installed,
 	downloads the file and use the file temporarily for login.
 
 	--delete
 
 		Deletes the created Wordpress admin login
-		
+
 
 wp_theme [<theme name>]
 
